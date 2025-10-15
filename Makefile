@@ -1,8 +1,9 @@
 CPPC   = clang++
-FLAGS  = -std=c++23 -Wpedantic 
+FLAGS  = -std=c++23 -Wall -Wextra 
 RM     = rm -rf
 SRCDIR = src/
 BUILDDIR = build/
  
 main: $(SRCDIR)main.cpp
 	$(CPPC) $(FLAGS) $(SRCDIR)main.cpp -o $(BUILDDIR)main
+
