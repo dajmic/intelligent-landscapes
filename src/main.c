@@ -1,245 +1,78 @@
+#include "../lib/glad/glad.h"
+
 #define RGFW_DEBUG
 #define RGFW_IMPORT
 #define GL_SILENCE_DEPRECATION
 #define RGFW_ADVANCED_SMOOTH_RESIZE
 #define RGFW_IMPLEMENTATION
 #define RGFWDEF
-#define RGFW_OPENGL
 #include "../lib/RGFW/RGFW.h"
-#include "../lib/glad/glad.h"
 
 #include <stdbool.h>
 #include <stdio.h>
 
-#include <math.h>
-#define DEG2RAD 3.14 / 180.0
-
-float pitch = 0.0, yaw = 0.0;
-float camX = 0, camZ = 0;
-
-RGFWDEF void update_camera(void);
-RGFWDEF void glPerspective(float fovY, float aspect, float zNear, float zFar);
-
-bool cm_platform_context_init(RGFW_window *window)
+void keyfunc(RGFW_window *win, RGFW_key key, u8 keyChar, RGFW_keymod keyMod,
+			 RGFW_bool repeat, RGFW_bool pressed)
 {
-	RGFW_window_crea RGFW_window_makeCurrent(window);
+	RGFW_UNUSED(repeat);
 
-	if (!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
-		fprintf(stderr, "GLAD initialization failed");
-
-		return false;
+	if (key == RGFW_escape && pressed) {
+		RGFW_window_setShouldClose(win, 1);
 	}
-
-	/* Default OpenGl Options */
-	glEnable(GL_BLEND); // Enables Transparency of png files
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	RGFW_window_swapInterval(window, 0);
-
-	glViewport(0, 0, window->r.w, window->r.h);
-
-	return true;
 }
 
-int main(void)
+int main()
 {
+	RGFW_window_createContext_OpenGL; // -> Needed to create an OpenGL context
+
+	/* the RGFW_windowOpenGL flag tells it to create an OpenGL context, but you can also create your own with RGFW_window_createContext_OpenGL */
 	RGFW_window *win =
-		RGFW_createWindow("CAM", 0, 0, 800, 450,
-						  RGFW_windowCenter | RGFW_windowNoResize |
-							  RGFW_windowFocusOnShow | RGFW_windowOpenGL);
-	RGFW_window_setExitKey(win, RGFW_escape);
+		RGFW_createWindow("WINDOW", 0, 0, 800, 600, RGFW_windowCenter);
 
-	if (!cm_platform_context_init(win)) {
-		fprintf(stderr, "Could not initialize context");
-		return 1;
-	}
+	RGFW_setKeyCallback(keyfunc); // you can use callbacks like this if you want
 
-	RGFW_window_showMouse(win, 0);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
+	while (RGFW_window_shouldClose(win) == RGFW_FALSE) {
+		RGFW_event event;
 
-	glEnable(GL_TEXTURE_2D);
-	GLuint texture;
-	glGenTextures(1, &texture);
-
-	unsigned char texture_data[] = { 0,	  0,   0,	255, 255, 255, 255, 255,
-									 255, 255, 255, 255, 0,	  0,   0,	255 };
-
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-				 texture_data);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glPerspective(60, 16.0 / 9.0, 1.0, 1000);
-	glMatrixMode(GL_MODELVIEW);
-
-	RGFW_window_holdMouse(win);
-
-	RGFW_event event;
-	while (RGFW_window_shouldClose(win) == 0) {
-		while (RGFW_window_checkEvent(win, &event)) {
+		while (RGFW_window_checkEvent(
+			win, &event)) { // or RGFW_pollEvents(); if you only want callbacks
+			// you can either check the current event yourself
 			if (event.type == RGFW_quit)
 				break;
 
-			switch (event.type) {
-			case RGFW_focusIn:
-				RGFW_window_holdMouse(win);
-				break;
-			case RGFW_mousePosChanged: {
-				int dev_x = event.mouse.vecX;
-				int dev_y = event.mouse.vecY;
+			i32 mouseX, mouseY;
+			RGFW_window_getMouse(win, &mouseX, &mouseY);
 
-				/* apply the changes to pitch and yaw*/
-				yaw += (float)dev_x / 15.0;
-				pitch += (float)dev_y / 15.0;
-				break;
+			if (event.type == RGFW_mouseButtonPressed &&
+				event.button.value == RGFW_mouseLeft) {
+				printf("You clicked at x: %d, y: %d\n", mouseX, mouseY);
 			}
-			case RGFW_keyPressed:
-				switch (event.key.value) {
-				case RGFW_return:
-					RGFW_window_showMouse(win, 0);
-					RGFW_window_holdMouse(win);
-					break;
 
-				case RGFW_backSpace:
-					RGFW_window_showMouse(win, 1);
-					RGFW_window_unholdMouse(win);
-					break;
-
-				case RGFW_left:
-					yaw -= 5;
-					break;
-				case RGFW_right:
-					yaw += 5;
-					break;
-				case RGFW_up:
-					pitch -= 5;
-					break;
-				case RGFW_down:
-					pitch += 5;
-					break;
-
-				default:
-					break;
-				}
-				break;
-			default:
-				break;
+			// or use the existing functions
+			if (RGFW_isMousePressed(RGFW_mouseRight)) {
+				printf("The right mouse button was clicked at x: %d, y: %d\n",
+					   mouseX, mouseY);
 			}
 		}
 
-		if (event.type == RGFW_quit)
-			break;
-
-		if (RGFW_isKeyDown(RGFW_w)) {
-			camX += cos((yaw + 90) * DEG2RAD) / 5.0;
-			camZ -= sin((yaw + 90) * DEG2RAD) / 5.0;
-		}
-		if (RGFW_isKeyDown(RGFW_s)) {
-			camX += cos((yaw + 270) * DEG2RAD) / 5.0;
-			camZ -= sin((yaw + 270) * DEG2RAD) / 5.0;
-		}
-
-		if (RGFW_isKeyDown(RGFW_a)) {
-			camX += cos(yaw * DEG2RAD) / 5.0;
-			camZ -= sin(yaw * DEG2RAD) / 5.0;
-		}
-
-		if (RGFW_isKeyDown(RGFW_d)) {
-			camX += cos((yaw + 180) * DEG2RAD) / 5.0;
-			camZ -= sin((yaw + 180) * DEG2RAD) / 5.0;
-		}
-
+		// OpenGL 1.1 is used here for a simple example, but you can use any version you want (if you request it first (see gl33/gl33.c))
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glLoadIdentity();
-		update_camera();
 
-		glViewport(0, 0, win->w, win->h);
-
-		glBegin(GL_QUADS);
-
-		glColor3ub(150, 0, 0);
-		glTexCoord2f(0.0, 0.0);
-		glVertex3f(-50.0, -5.0, -50.0);
-		glColor3ub(150, 0, 0);
-		glTexCoord2f(25.0, 0.0);
-		glVertex3f(50.0, -5.0, -50.0);
-		glColor3ub(150, 0, 0);
-		glTexCoord2f(25.0, 25.0);
-		glVertex3f(50.0, -5.0, 50.0);
-		glColor3ub(150, 0, 0);
-		glTexCoord2f(0.0, 25.0);
-		glVertex3f(-50.0, -5.0, 50.0);
-
-		glColor3ub(255, 192, 203);
-		glTexCoord2f(0.0, 0.0);
-		glVertex3f(-50.0, -5.0, -50);
-		glColor3ub(255, 192, 203);
-		glTexCoord2f(25.0, 0.0);
-		glVertex3f(50.0, -5.0, -50);
-		glColor3ub(255, 192, 203);
-		glTexCoord2f(25.0, 25.0);
-		glVertex3f(50.0, 50.0, 1);
-		glColor3ub(255, 192, 203);
-		glTexCoord2f(0.0, 25.0);
-		glVertex3f(-50.0, 50.0, 1);
-
-		glColor3ub(0, 0, 203);
-		glTexCoord2f(0.0, 0.0);
-		glVertex3f(-50.0, -5.0, 50);
-		glColor3ub(0, 0, 203);
-		glTexCoord2f(25.0, 0.0);
-		glVertex3f(50.0, -5.0, 50);
-		glColor3ub(0, 0, 203);
-		glTexCoord2f(25.0, 25.0);
-		glVertex3f(50.0, 50.0, -50);
-		glColor3ub(0, 0, 203);
-		glTexCoord2f(0.0, 25.0);
-		glVertex3f(-50.0, 50.0, -50);
-
+		glBegin(GL_TRIANGLES);
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glVertex2f(-0.6f, -0.75f);
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex2f(0.6f, -0.75f);
+		glColor3f(0.0f, 0.0f, 1.0f);
+		glVertex2f(0.0f, 0.75f);
 		glEnd();
 
 		RGFW_window_swapBuffers_OpenGL(win);
+		glFlush();
 	}
 
-	glDeleteTextures(1, &texture);
-
 	RGFW_window_close(win);
+
 	return 0;
 }
-
-void update_camera(void)
-{
-	if (pitch >= 90)
-		pitch = 90;
-	else if (pitch <= -90)
-		pitch = -90;
-
-	glRotatef(pitch, 1.0, 0.0, 0.0);
-	glRotatef(yaw, 0.0, 1.0, 0.0);
-
-	glTranslatef(camX, 0.0, -camZ);
-}
-
-void glPerspective(float fovY, float aspect, float zNear, float zFar)
-{
-	fovY = (fovY * DEG2RAD) / 2.0f;
-	const float f = (cosf(fovY) / sinf(fovY));
-
-	float projectionMatrix[16] = { 0 };
-
-	projectionMatrix[0] = f / aspect;
-	projectionMatrix[5] = f;
-	projectionMatrix[10] = (zFar + zNear) / (zNear - zFar);
-	projectionMatrix[11] = -1.0;
-	projectionMatrix[14] = (2.0 * zFar * zNear) / (zNear - zFar);
-
-	glMultMatrixf(projectionMatrix);
-}
-
